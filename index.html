@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claude Stream</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+  :root {
+    --bg: #faf9f6;
+    --surface: #ffffff;
+    --text-primary: #1a1a18;
+    --text-secondary: #6b6b64;
+    --text-muted: #a8a89e;
+    --accent: #2d5a3d;
+    --accent-light: #e8f0ea;
+    --border: #e8e6e0;
+    --radius: 12px;
+  }
+ 
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+ 
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 48px 24px 64px;
+  }
+ 
+  .masthead {
+    width: 100%;
+    max-width: 680px;
+    margin-bottom: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+ 
+  .wordmark {
+    font-family: 'Lora', serif;
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+ 
+  .wordmark-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+ 
+  .status-pill {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    transition: all 0.3s ease;
+  }
+ 
+  .status-pill.streaming {
+    color: var(--accent);
+    border-color: #b6d4bc;
+    background: var(--accent-light);
+  }
+ 
+  .input-area {
+    width: 100%;
+    max-width: 680px;
+    margin-bottom: 40px;
+  }
+ 
+  .prompt-wrapper {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+ 
+  .prompt-wrapper:focus-within {
+    border-color: #b6d4bc;
+    box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.08);
+  }
+ 
+  textarea#prompt {
+    width: 100%;
+    min-height: 96px;
+    max-height: 260px;
+    padding: 18px 20px 52px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text-primary);
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow-y: auto;
+  }
+ 
+  textarea#prompt::placeholder {
+    color: var(--text-muted);
+  }
+ 
+  .prompt-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px 12px 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+  }
+ 
+  .model-tag {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+  }
+ 
+  .btn-row {
+    display: flex;
+    gap: 8px;
+  }
+ 
+  button {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1;
+  }
+ 
+  #clearBtn {
+    padding: 7px 14px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+  }
+ 
+  #clearBtn:hover {
+    color: var(--text-secondary);
+    border-color: var(--border);
+    background: var(--bg);
+  }
+ 
+  #sendBtn {
+    padding: 7px 18px;
+    background: var(--accent);
+    color: #ffffff;
+    letter-spacing: 0.01em;
+  }
+ 
+  #sendBtn:hover {
+    background: #214430;
+    transform: translateY(-1px);
+  }
+ 
+  #sendBtn:active {
+    transform: translateY(0);
+  }
+ 
+  #sendBtn:disabled {
+    background: var(--border);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    transform: none;
+  }
+ 
+  #stopBtn {
+    padding: 7px 18px;
+    background: transparent;
+    color: #c0392b;
+    border: 1px solid #e0b0ab;
+    border-radius: 8px;
+    display: none;
+  }
+ 
+  #stopBtn:hover {
+    background: #fdf0ef;
+  }
+ 
+  .output-area {
+    width: 100%;
+    max-width: 680px;
+    flex: 1;
+  }
+ 
+  .response-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    margin-bottom: 16px;
+  }
+ 
+  .response-block.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+ 
+  .response-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+ 
+  .avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+ 
+  .avatar svg {
+    width: 12px;
+    height: 12px;
+    fill: var(--accent);
+  }
+ 
+  .response-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+ 
+  .copy-btn {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    letter-spacing: 0.03em;
+  }
+ 
+  .copy-btn:hover {
+    color: var(--text-secondary);
+    background: var(--bg);
+  }
+ 
+  .copy-btn.copied {
+    color: var(--accent);
+  }
+ 
+  .response-body {
+    padding: 24px 28px 28px;
+    max-height: 540px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+ 
+  .response-body::-webkit-scrollbar { width: 4px; }
+  .response-body::-webkit-scrollbar-track { background: transparent; }
+  .response-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+ 
+  #responseText {
+    font-family: 'Lora', serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+ 
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: var(--accent);
+    vertical-align: text-bottom;
+    margin-left: 2px;
+    animation: blink 0.85s step-end infinite;
+    border-radius: 1px;
+  }
+ 
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+ 
+  .empty-state {
+    text-align: center;
+    padding: 64px 0;
+    color: var(--text-muted);
+  }
+ 
+  .empty-state p {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+ 
+  .prompt-echo {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 14px 28px;
+    font-family: 'DM Sans', sans-serif;
+    border-bottom: 1px dashed var(--border);
+  }
+ 
+  .error-msg {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: #c0392b;
+    background: #fdf0ef;
+    border: 1px solid #e0b0ab;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+ 
+<header class="masthead">
+  <div class="wordmark">
+    <span class="wordmark-dot"></span>
+    Claude Stream
+  </div>
+  <div class="status-pill" id="statusPill">ready</div>
+</header>
+ 
+<div class="input-area">
+  <div class="prompt-wrapper">
+    <textarea id="prompt" placeholder="Ask anything…" rows="3"></textarea>
+    <div class="prompt-footer">
+      <span class="model-tag">claude-sonnet-4 · stream</span>
+      <div class="btn-row">
+        <button id="clearBtn" onclick="clearAll()">Clear</button>
+        <button id="stopBtn" onclick="stopStream()">Stop</button>
+        <button id="sendBtn" onclick="send()">Send →</button>
+      </div>
+    </div>
+  </div>
+</div>
+ 
+<div class="output-area">
+  <div class="error-msg" id="errorMsg"></div>
+  <div class="response-block" id="responseBlock">
+    <div class="response-meta">
+      <div class="avatar">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+        </svg>
+      </div>
+      <span class="response-label">Claude</span>
+      <button class="copy-btn" id="copyResponseBtn" onclick="copyResponse()">copy</button>
+    </div>
+    <div class="prompt-echo" id="promptEcho"></div>
+    <div class="response-body" id="responseBody">
+      <span id="responseText"></span>
+      <span class="cursor" id="cursor" style="display:none"></span>
+    </div>
+  </div>
+  <div class="empty-state" id="emptyState">
+    <p>Your response will appear here,<br>streaming token by token.</p>
+  </div>
+</div>
+ 
+<!-- All logic lives in functions.js -->
+<script src="functions.js"></script>
+ 
+</body>
+</html>
